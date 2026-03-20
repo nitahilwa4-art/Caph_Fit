@@ -163,7 +163,7 @@ export async function saveDailyLog(userId: string, date: string, data: any) {
   }
 }
 
-export async function getDailyLogs(userId: string, limitCount: number = 7) {
+export async function getDailyLogs(userId: string, limitCount: number = 365) {
   try {
     // Note: In a real app, you'd want to order by date descending and limit.
     // For simplicity without requiring composite indexes immediately, we just query by userId.

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import NutritionLog from './pages/NutritionLog';
 import WorkoutGenerator from './pages/WorkoutGenerator';
 import Settings from './pages/Settings';
+import DailyDetail from './pages/DailyDetail';
 import { AnimatePresence } from 'motion/react';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -37,6 +38,7 @@ const AnimatedRoutes = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/daily-detail" element={<PrivateRoute><DailyDetail /></PrivateRoute>} />
         <Route path="/nutrition" element={<PrivateRoute><NutritionLog /></PrivateRoute>} />
         <Route path="/workout" element={<PrivateRoute><WorkoutGenerator /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />

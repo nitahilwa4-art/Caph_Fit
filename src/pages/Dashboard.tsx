@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -28,6 +28,9 @@ import {
   Scale,
   Sparkles,
   Settings,
+  X,
+  CheckCircle2,
+  ListTodo,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -39,7 +42,87 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [generatingHabits, setGeneratingHabits] = useState(false);
   const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showHabitsModal, setShowHabitsModal] = useState(false);
   const [newWeight, setNewWeight] = useState("");
+  const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
+
+  // ... (rest of the component logic remains the same)
+
+  // Add this to the JSX where the checklist was:
+  // <button onClick={() => setShowHabitsModal(true)} ...>Open Checklist</button>
+
+  // Add this Modal component:
+  const HabitsModal = () => (
+    <AnimatePresence>
+      {showHabitsModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowHabitsModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="glass-card w-full max-w-lg p-6 rounded-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <ListTodo className="text-emerald-400" /> Daily Checklist
+              </h2>
+              <button onClick={() => setShowHabitsModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {todayLog?.habits ? (
+              <ul className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                {todayLog.habits.map((habit: any) => (
+                  <li
+                    key={habit.id}
+                    className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${habit.completed ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900/80 border-slate-700/50 hover:border-emerald-500/30'} cursor-pointer`}
+                    onClick={() => toggleHabit(habit.id)}
+                  >
+                    <div className={`mt-0.5 relative flex items-center justify-center w-6 h-6 shrink-0 rounded-lg border-2 transition-colors ${habit.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'}`}>
+                      <svg className={`w-4 h-4 text-white transition-opacity ${habit.completed ? 'opacity-100' : 'opacity-0'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className={`block font-medium transition-colors ${habit.completed ? "text-slate-500 line-through" : "text-slate-100"}`}>
+                        {habit.text}
+                      </span>
+                      <span className={`text-xs block mt-1 transition-colors ${habit.completed ? "text-slate-600" : "text-slate-400"}`}>
+                        {habit.reason}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center py-10">
+                <Sparkles className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-400 mb-6">Generate your personalized daily habits.</p>
+                <button
+                  onClick={handleGenerateHabits}
+                  disabled={generatingHabits}
+                  className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-emerald-600 transition-colors"
+                >
+                  {generatingHabits ? "Generating..." : "Generate Habits"}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  // ... (rest of the component)
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -167,21 +250,43 @@ export default function Dashboard() {
           },
         ];
 
-  // Weekly Calorie Data
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split("T")[0];
-  });
+  // Calorie Data
+  const getCalorieData = () => {
+    if (viewMode === 'daily') {
+      const last30Days = Array.from({ length: 30 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (29 - i));
+        return d.toISOString().split("T")[0];
+      });
 
-  const weeklyCalorieData = last7Days.map((date) => {
-    const log = dailyLogs.find((l) => l.date === date);
-    return {
-      date: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
-      consumed: log?.total_calories_consumed || 0,
-      target: log?.total_calories_target || profile?.target_calories || 2000,
-    };
-  });
+      return last30Days.map((date) => {
+        const log = dailyLogs.find((l) => l.date === date);
+        return {
+          date: new Date(date).toLocaleDateString("en-US", { month: 'short', day: 'numeric' }),
+          consumed: log?.total_calories_consumed || 0,
+          target: log?.total_calories_target || profile?.target_calories || 2000,
+        };
+      });
+    } else {
+      // Monthly aggregation
+      const months: { [key: string]: { consumed: number, target: number, count: number } } = {};
+      dailyLogs.forEach(log => {
+        const month = log.date.substring(0, 7); // YYYY-MM
+        if (!months[month]) months[month] = { consumed: 0, target: 0, count: 0 };
+        months[month].consumed += log.total_calories_consumed || 0;
+        months[month].target += log.total_calories_target || profile?.target_calories || 2000;
+        months[month].count += 1;
+      });
+
+      return Object.keys(months).map(month => ({
+        date: new Date(month + '-01').toLocaleDateString("en-US", { month: 'short', year: 'numeric' }),
+        consumed: Math.round(months[month].consumed / months[month].count),
+        target: Math.round(months[month].target / months[month].count),
+      }));
+    }
+  };
+
+  const calorieData = getCalorieData();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -263,21 +368,21 @@ export default function Dashboard() {
         >
           <motion.div variants={itemVariants}>
             <Link
-              to="/nutrition"
+              to="/daily-detail"
               className="glass-card rounded-2xl p-6 group block hover:border-emerald-500/40 transition-all h-full relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20">
-                  <Apple className="text-emerald-400 w-7 h-7" />
+                  <Activity className="text-emerald-400 w-7 h-7" />
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
               </div>
               <h2 className="text-xl font-semibold text-white mb-1">
-                Log Nutrition
+                Daily Detail
               </h2>
               <p className="text-sm text-slate-400">
-                AI-powered food tracking via text or photo
+                Track food, exercise, and calories
               </p>
             </Link>
           </motion.div>
@@ -305,71 +410,18 @@ export default function Dashboard() {
 
           <motion.div
             variants={itemVariants}
-            className="glass-card rounded-2xl p-6 flex flex-col h-full"
+            className="glass-card rounded-2xl p-6 flex flex-col justify-center items-center h-full cursor-pointer hover:border-emerald-500/40 transition-all group"
+            onClick={() => setShowHabitsModal(true)}
           >
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Daily Checklist
-              </h2>
-              {!todayLog?.habits && (
-                <button
-                  onClick={handleGenerateHabits}
-                  disabled={generatingHabits}
-                  className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors border border-emerald-500/20 flex items-center gap-1 disabled:opacity-50"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {generatingHabits ? "Generating..." : "Generate"}
-                </button>
-              )}
+            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20 mb-4">
+              <ListTodo className="text-emerald-400 w-7 h-7" />
             </div>
-
-            {todayLog?.habits ? (
-              <ul className="space-y-4 flex-1">
-                {todayLog.habits.map((habit: any) => (
-                  <li
-                    key={habit.id}
-                    className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${habit.completed ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900/80 border-slate-700/50 hover:border-emerald-500/30'} cursor-pointer`}
-                    onClick={() => toggleHabit(habit.id)}
-                  >
-                    <div className={`mt-0.5 relative flex items-center justify-center w-6 h-6 shrink-0 rounded-lg border-2 transition-colors ${habit.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'}`}>
-                      <svg
-                        className={`w-4 h-4 text-white transition-opacity ${habit.completed ? 'opacity-100' : 'opacity-0'}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <span
-                        className={`block font-medium transition-colors ${habit.completed ? "text-slate-500 line-through" : "text-slate-100"}`}
-                      >
-                        {habit.text}
-                      </span>
-                      <span
-                        className={`text-xs block mt-1 transition-colors ${habit.completed ? "text-slate-600" : "text-slate-400"}`}
-                      >
-                        {habit.reason}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-800 rounded-xl">
-                <Sparkles className="w-8 h-8 text-slate-600 mb-2" />
-                <p className="text-sm text-slate-400">
-                  Generate your personalized daily habits based on your goals.
-                </p>
-              </div>
-            )}
+            <h2 className="text-xl font-semibold text-white mb-1">
+              Daily Checklist
+            </h2>
+            <p className="text-sm text-slate-400 text-center">
+              View and manage your daily habits
+            </p>
           </motion.div>
         </motion.div>
 
@@ -544,13 +596,19 @@ export default function Dashboard() {
             variants={itemVariants}
             className="glass-card rounded-2xl p-6 lg:p-8"
           >
-            <h2 className="text-lg font-semibold text-white mb-6">
-              Weekly Calorie Intake
-            </h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold text-white">
+                {viewMode === 'daily' ? 'Daily Calorie Intake' : 'Monthly Calorie Intake'}
+              </h2>
+              <div className="flex bg-slate-800 rounded-lg p-1">
+                <button onClick={() => setViewMode('daily')} className={`px-3 py-1 text-xs rounded-md ${viewMode === 'daily' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>Daily</button>
+                <button onClick={() => setViewMode('monthly')} className={`px-3 py-1 text-xs rounded-md ${viewMode === 'monthly' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>Monthly</button>
+              </div>
+            </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={weeklyCalorieData}
+                  data={calorieData}
                   margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
                 >
                   <XAxis
@@ -670,6 +728,7 @@ export default function Dashboard() {
             </motion.div>
           </motion.div>
         )}
+        <HabitsModal />
       </AnimatePresence>
     </motion.div>
   );
