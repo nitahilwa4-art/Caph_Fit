@@ -1,0 +1,676 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  getUserProfile,
+  getUserPreferences,
+  getDailyLogs,
+  saveDailyLog,
+} from "../services/dbService";
+import { generateDailyHabits } from "../services/geminiService";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  Activity,
+  Apple,
+  Dumbbell,
+  LogOut,
+  ChevronRight,
+  Scale,
+  Sparkles,
+  Settings,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+
+export default function Dashboard() {
+  const { user, logout } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [preferences, setPreferences] = useState<any>(null);
+  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generatingHabits, setGeneratingHabits] = useState(false);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [newWeight, setNewWeight] = useState("");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (user) {
+        const p = await getUserProfile(user.uid);
+        const pref = await getUserPreferences(user.uid);
+        const logs = await getDailyLogs(user.uid);
+        setProfile(p);
+        setPreferences(pref);
+        setDailyLogs(logs);
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [user]);
+
+  const today = new Date().toISOString().split("T")[0];
+  const todayLog = dailyLogs.find((log) => log.date === today) || {};
+
+  const handleGenerateHabits = async () => {
+    if (!user || !profile || !preferences) return;
+    setGeneratingHabits(true);
+    try {
+      const newHabits = await generateDailyHabits(profile, preferences);
+      const habitsWithStatus = newHabits.map((h: any) => ({
+        ...h,
+        completed: false,
+      }));
+
+      await saveDailyLog(user.uid, today, {
+        ...todayLog,
+        habits: habitsWithStatus,
+        total_calories_target: todayLog.total_calories_target || 2000,
+        total_calories_consumed: todayLog.total_calories_consumed || 0,
+      });
+
+      const logs = await getDailyLogs(user.uid);
+      setDailyLogs(logs);
+    } catch (error) {
+      console.error("Error generating habits:", error);
+    } finally {
+      setGeneratingHabits(false);
+    }
+  };
+
+  const toggleHabit = async (habitId: string) => {
+    if (!user || !todayLog.habits) return;
+
+    const updatedHabits = todayLog.habits.map((h: any) =>
+      h.id === habitId ? { ...h, completed: !h.completed } : h,
+    );
+
+    // Optimistic update
+    const updatedLogs = dailyLogs.map((log) =>
+      log.date === today ? { ...log, habits: updatedHabits } : log,
+    );
+    setDailyLogs(updatedLogs);
+
+    await saveDailyLog(user.uid, today, {
+      ...todayLog,
+      habits: updatedHabits,
+      total_calories_target: todayLog.total_calories_target || profile?.target_calories || 2000,
+      total_calories_consumed: todayLog.total_calories_consumed || 0,
+    });
+  };
+
+  const handleLogWeight = async () => {
+    if (!user || !newWeight) return;
+    const weightNum = parseFloat(newWeight);
+    if (isNaN(weightNum)) return;
+
+    await saveDailyLog(user.uid, today, {
+      ...todayLog,
+      weight_input: weightNum,
+      total_calories_target: todayLog.total_calories_target || profile?.target_calories || 2000,
+      total_calories_consumed: todayLog.total_calories_consumed || 0,
+    });
+
+    // Refresh logs
+    const logs = await getDailyLogs(user.uid);
+    setDailyLogs(logs);
+    setShowWeightModal(false);
+    setNewWeight("");
+  };
+
+  const macroData = [
+    {
+      name: "Protein",
+      value: todayLog?.total_protein_consumed || 0,
+      color: "#10b981",
+    },
+    {
+      name: "Carbs",
+      value: todayLog?.total_carbs_consumed || 0,
+      color: "#f59e0b",
+    },
+    { name: "Fat", value: todayLog?.total_fat_consumed || 0, color: "#ef4444" },
+  ];
+
+  // If all macros are 0, show a placeholder
+  const hasMacros = macroData.some((m) => m.value > 0);
+  const displayMacroData = hasMacros
+    ? macroData
+    : [{ name: "No Data", value: 1, color: "#334155" }];
+
+  const weightData = dailyLogs
+    .map((log) => ({
+      date: new Date(log.date).toLocaleDateString("en-US", {
+        weekday: "short",
+      }),
+      actual: log.weight_input || null,
+      target: profile?.target_weight || null,
+    }))
+    .filter((log) => log.actual !== null);
+
+  // Fallback to mock data if no weight logs exist yet
+  const displayWeightData =
+    weightData.length > 0
+      ? weightData
+      : [
+          {
+            date: "Mon",
+            actual: profile?.starting_weight || 70,
+            target: profile?.target_weight || 70,
+          },
+        ];
+
+  // Weekly Calorie Data
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split("T")[0];
+  });
+
+  const weeklyCalorieData = last7Days.map((date) => {
+    const log = dailyLogs.find((l) => l.date === date);
+    return {
+      date: new Date(date).toLocaleDateString("en-US", { weekday: "short" }),
+      consumed: log?.total_calories_consumed || 0,
+      target: log?.total_calories_target || profile?.target_calories || 2000,
+    };
+  });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring" as const, stiffness: 100, damping: 15 },
+    },
+  };
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-emerald-500">
+        <Activity className="w-10 h-10 animate-pulse mb-4" />
+        <p className="text-slate-400 font-medium tracking-wide">
+          Loading your dashboard...
+        </p>
+      </div>
+    );
+
+  return (
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      exit={{ opacity: 0 }}
+      variants={containerVariants}
+      className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 relative overflow-hidden"
+    >
+      {/* Background Glows */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="max-w-6xl mx-auto relative z-10">
+        <motion.header
+          variants={itemVariants}
+          className="flex justify-between items-center mb-12"
+        >
+          <div>
+            <h1 className="text-4xl font-extrabold text-white tracking-tighter flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20">
+                <Activity className="text-emerald-400 w-7 h-7" />
+              </div>
+              OmniFit AI
+            </h1>
+            <p className="text-slate-400 text-sm mt-3 flex items-center gap-2 font-medium">
+              Goal:{" "}
+              <span className="px-3 py-1 bg-slate-800/50 rounded-full capitalize text-emerald-400 font-semibold text-xs border border-slate-700/50">
+                {profile?.goal_type || 'Maintain'}
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/settings"
+              className="p-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 rounded-full transition-all text-slate-400 hover:text-white shadow-sm"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+            <button
+              onClick={logout}
+              className="p-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 rounded-full transition-all text-slate-400 hover:text-white shadow-sm"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </motion.header>
+
+        <motion.div
+          variants={containerVariants}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
+        >
+          <motion.div variants={itemVariants}>
+            <Link
+              to="/nutrition"
+              className="glass-card rounded-2xl p-6 group block hover:border-emerald-500/40 transition-all h-full relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20">
+                  <Apple className="text-emerald-400 w-7 h-7" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-1">
+                Log Nutrition
+              </h2>
+              <p className="text-sm text-slate-400">
+                AI-powered food tracking via text or photo
+              </p>
+            </Link>
+          </motion.div>
+
+          <motion.div variants={itemVariants}>
+            <Link
+              to="/workout"
+              className="glass-card rounded-2xl p-6 group block hover:border-emerald-500/40 transition-all h-full relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20">
+                  <Dumbbell className="text-emerald-400 w-7 h-7" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-1">
+                Generate Workout
+              </h2>
+              <p className="text-sm text-slate-400">
+                Adaptive routine based on fatigue & gear
+              </p>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            variants={itemVariants}
+            className="glass-card rounded-2xl p-6 flex flex-col h-full"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Daily Checklist
+              </h2>
+              {!todayLog?.habits && (
+                <button
+                  onClick={handleGenerateHabits}
+                  disabled={generatingHabits}
+                  className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors border border-emerald-500/20 flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {generatingHabits ? "Generating..." : "Generate"}
+                </button>
+              )}
+            </div>
+
+            {todayLog?.habits ? (
+              <ul className="space-y-4 flex-1">
+                {todayLog.habits.map((habit: any) => (
+                  <li
+                    key={habit.id}
+                    className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${habit.completed ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900/80 border-slate-700/50 hover:border-emerald-500/30'} cursor-pointer`}
+                    onClick={() => toggleHabit(habit.id)}
+                  >
+                    <div className={`mt-0.5 relative flex items-center justify-center w-6 h-6 shrink-0 rounded-lg border-2 transition-colors ${habit.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'}`}>
+                      <svg
+                        className={`w-4 h-4 text-white transition-opacity ${habit.completed ? 'opacity-100' : 'opacity-0'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <span
+                        className={`block font-medium transition-colors ${habit.completed ? "text-slate-500 line-through" : "text-slate-100"}`}
+                      >
+                        {habit.text}
+                      </span>
+                      <span
+                        className={`text-xs block mt-1 transition-colors ${habit.completed ? "text-slate-600" : "text-slate-400"}`}
+                      >
+                        {habit.reason}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-slate-800 rounded-xl">
+                <Sparkles className="w-8 h-8 text-slate-600 mb-2" />
+                <p className="text-sm text-slate-400">
+                  Generate your personalized daily habits based on your goals.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
+          <motion.div
+            variants={itemVariants}
+            className="glass-card rounded-2xl p-6 lg:p-8"
+          >
+            <h2 className="text-lg font-semibold text-white mb-6">
+              Today's Macros
+            </h2>
+            <div className="h-64 relative">
+              <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                <span className="text-3xl font-bold text-white">
+                  {todayLog?.total_calories_consumed || 0}
+                </span>
+                <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+                  / {todayLog?.total_calories_target || profile?.target_calories || 2000} Kcal
+                </span>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={displayMacroData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={75}
+                    outerRadius={95}
+                    paddingAngle={8}
+                    dataKey="value"
+                    stroke="none"
+                    cornerRadius={6}
+                  >
+                    {displayMacroData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        style={{
+                          filter: `drop-shadow(0px 4px 8px ${entry.color}40)`,
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(15, 23, 42, 0.9)",
+                      backdropFilter: "blur(8px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                    }}
+                    itemStyle={{ color: "#f8fafc", fontWeight: 500 }}
+                    cursor={false}
+                    formatter={(value: number) =>
+                      hasMacros ? [`${value}g`, ""] : ["No data yet", ""]
+                    }
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-6 mt-6">
+              {macroData.map((m) => (
+                <div key={m.name} className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full shadow-sm"
+                    style={{
+                      backgroundColor: m.color,
+                      boxShadow: `0 0 10px ${m.color}80`,
+                    }}
+                  />
+                  <span className="text-sm font-medium text-slate-300">
+                    {m.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.div
+            variants={itemVariants}
+            className="glass-card rounded-2xl p-6 lg:p-8 relative"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold text-white">
+                Weight Progress
+              </h2>
+              <button
+                onClick={() => setShowWeightModal(true)}
+                className="flex items-center gap-2 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors border border-emerald-500/20"
+              >
+                <Scale className="w-3.5 h-3.5" /> Log Weight
+              </button>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={displayWeightData}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
+                  <XAxis
+                    dataKey="date"
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dy={10}
+                  />
+                  <YAxis
+                    domain={["dataMin - 2", "dataMax + 2"]}
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dx={-10}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(15, 23, 42, 0.9)",
+                      backdropFilter: "blur(8px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                    }}
+                    itemStyle={{ color: "#f8fafc", fontWeight: 500 }}
+                    cursor={{
+                      stroke: "#334155",
+                      strokeWidth: 1,
+                      strokeDasharray: "5 5",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="actual"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                      fill: "#020617",
+                      stroke: "#10b981",
+                      strokeWidth: 2,
+                    }}
+                    activeDot={{
+                      r: 6,
+                      fill: "#10b981",
+                      stroke: "#fff",
+                      strokeWidth: 2,
+                    }}
+                    name="Actual Weight"
+                    animationDuration={1500}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Target Weight"
+                    opacity={0.5}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <motion.div variants={containerVariants} className="mt-6">
+          <motion.div
+            variants={itemVariants}
+            className="glass-card rounded-2xl p-6 lg:p-8"
+          >
+            <h2 className="text-lg font-semibold text-white mb-6">
+              Weekly Calorie Intake
+            </h2>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={weeklyCalorieData}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
+                  <XAxis
+                    dataKey="date"
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dy={10}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dx={-10}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(15, 23, 42, 0.9)",
+                      backdropFilter: "blur(8px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                    }}
+                    itemStyle={{ color: "#f8fafc", fontWeight: 500 }}
+                    cursor={{
+                      stroke: "#334155",
+                      strokeWidth: 1,
+                      strokeDasharray: "5 5",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="consumed"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    dot={{
+                      r: 4,
+                      fill: "#020617",
+                      stroke: "#3b82f6",
+                      strokeWidth: 2,
+                    }}
+                    activeDot={{
+                      r: 6,
+                      fill: "#3b82f6",
+                      stroke: "#fff",
+                      strokeWidth: 2,
+                    }}
+                    name="Consumed (kcal)"
+                    animationDuration={1500}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="target"
+                    stroke="#64748b"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Target (kcal)"
+                    opacity={0.5}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
+
+      {/* Weight Logging Modal */}
+      <AnimatePresence>
+        {showWeightModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl border border-slate-700/50 shadow-2xl"
+            >
+              <h3 className="text-xl font-bold text-white mb-4">
+                Log Today's Weight
+              </h3>
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+                  Weight (kg)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newWeight}
+                  onChange={(e) => setNewWeight(e.target.value)}
+                  placeholder="e.g. 70.5"
+                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-mono text-lg"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowWeightModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogWeight}
+                  disabled={!newWeight}
+                  className="flex-1 btn-premium py-3 disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}

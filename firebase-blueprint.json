@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Core physical attributes and goals of the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The user's ID" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "dob": { "type": "string", "format": "date" },
+        "height": { "type": "number", "description": "Height in cm" },
+        "starting_weight": { "type": "number", "description": "Weight in kg" },
+        "target_weight": { "type": "number", "description": "Weight in kg" },
+        "goal_type": { "type": "string", "enum": ["cut", "bulk", "maintain"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "gender", "dob", "height", "starting_weight", "target_weight", "goal_type"]
+    },
+    "UserPreferences": {
+      "title": "User Preferences",
+      "description": "Lifestyle, equipment, and metabolic pacing preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "activity_level": { "type": "string", "enum": ["sedentary", "light", "moderate", "active", "highly_active"] },
+        "digestion_speed": { "type": "string", "enum": ["fast", "normal", "slow"] },
+        "equipment_available": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "work_hours": { "type": "string", "description": "e.g., 09:00-17:00" },
+        "dietary_restrictions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "activity_level", "digestion_speed", "equipment_available"]
+    },
+    "DailyLog": {
+      "title": "Daily Log",
+      "description": "Summary of a specific day's nutrition and weight.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD format" },
+        "is_workout_day": { "type": "boolean" },
+        "total_calories_target": { "type": "number" },
+        "total_calories_consumed": { "type": "number" },
+        "total_protein_consumed": { "type": "number" },
+        "total_carbs_consumed": { "type": "number" },
+        "total_fat_consumed": { "type": "number" },
+        "weight_input": { "type": "number" },
+        "habits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "reason": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "total_calories_target", "total_calories_consumed"]
+    },
+    "FoodEntry": {
+      "title": "Food Entry",
+      "description": "Individual food item logged via AI.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD format" },
+        "input_type": { "type": "string", "enum": ["text", "photo"] },
+        "raw_prompt": { "type": "string" },
+        "food_name": { "type": "string" },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "input_type", "food_name", "calories", "protein", "carbs", "fat"]
+    },
+    "WorkoutSession": {
+      "title": "Workout Session",
+      "description": "A generated workout routine for the day.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD format" },
+        "routine_name": { "type": "string" },
+        "fatigue_level": { "type": "number", "description": "1-10 scale" },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "sets": { "type": "number" },
+              "reps": { "type": "string" },
+              "rpe": { "type": "number" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "routine_name", "exercises", "completed"]
+    }
+  },
+  "firestore": {
+    "/user_profiles/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores user physical profiles. Document ID is the user's UID."
+    },
+    "/user_preferences/{userId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "Stores user lifestyle and equipment preferences. Document ID is the user's UID."
+    },
+    "/daily_logs/{logId}": {
+      "schema": { "$ref": "#/entities/DailyLog" },
+      "description": "Stores daily summaries of nutrition and weight."
+    },
+    "/food_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/FoodEntry" },
+      "description": "Stores individual food logs."
+    },
+    "/workouts/{workoutId}": {
+      "schema": { "$ref": "#/entities/WorkoutSession" },
+      "description": "Stores generated workout sessions."
+    }
+  }
+}

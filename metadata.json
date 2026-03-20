@@ -1,0 +1,5 @@
+{
+  "name": "OmniFit AI",
+  "description": "Personalized Nutrition & Training Tracker",
+  "requestFramePermissions": ["camera"]
+}
