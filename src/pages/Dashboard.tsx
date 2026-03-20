@@ -147,8 +147,9 @@ export default function Dashboard() {
     setGeneratingHabits(true);
     try {
       const newHabits = await generateDailyHabits(profile, preferences);
-      const habitsWithStatus = newHabits.map((h: any) => ({
+      const habitsWithStatus = newHabits.map((h: any, index: number) => ({
         ...h,
+        id: `${h.id || 'habit'}-${index}-${Date.now()}`,
         completed: false,
       }));
 
@@ -348,6 +349,34 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              to="/workout"
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl transition-all font-semibold text-sm"
+            >
+              <Dumbbell className="w-4 h-4" />
+              Workout
+            </Link>
+            <Link
+              to="/workout-history"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-all font-semibold text-sm"
+            >
+              <Activity className="w-4 h-4" />
+              History
+            </Link>
+            <Link
+              to="/daily-detail"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-all font-semibold text-sm"
+            >
+              <Activity className="w-4 h-4" />
+              Daily Detail
+            </Link>
+            <button
+              onClick={() => setShowHabitsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-all font-semibold text-sm"
+            >
+              <ListTodo className="w-4 h-4" />
+              Checklist
+            </button>
+            <Link
               to="/settings"
               className="p-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 rounded-full transition-all text-slate-400 hover:text-white shadow-sm"
             >
@@ -361,69 +390,6 @@ export default function Dashboard() {
             </button>
           </div>
         </motion.header>
-
-        <motion.div
-          variants={containerVariants}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
-        >
-          <motion.div variants={itemVariants}>
-            <Link
-              to="/daily-detail"
-              className="glass-card rounded-2xl p-6 group block hover:border-emerald-500/40 transition-all h-full relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20">
-                  <Activity className="text-emerald-400 w-7 h-7" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-1">
-                Daily Detail
-              </h2>
-              <p className="text-sm text-slate-400">
-                Track food, exercise, and calories
-              </p>
-            </Link>
-          </motion.div>
-
-          <motion.div variants={itemVariants}>
-            <Link
-              to="/workout"
-              className="glass-card rounded-2xl p-6 group block hover:border-emerald-500/40 transition-all h-full relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20">
-                  <Dumbbell className="text-emerald-400 w-7 h-7" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-emerald-400 transition-colors" />
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-1">
-                Generate Workout
-              </h2>
-              <p className="text-sm text-slate-400">
-                Adaptive routine based on fatigue & gear
-              </p>
-            </Link>
-          </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            className="glass-card rounded-2xl p-6 flex flex-col justify-center items-center h-full cursor-pointer hover:border-emerald-500/40 transition-all group"
-            onClick={() => setShowHabitsModal(true)}
-          >
-            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-emerald-500/20 mb-4">
-              <ListTodo className="text-emerald-400 w-7 h-7" />
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-1">
-              Daily Checklist
-            </h2>
-            <p className="text-sm text-slate-400 text-center">
-              View and manage your daily habits
-            </p>
-          </motion.div>
-        </motion.div>
 
         <motion.div
           variants={containerVariants}

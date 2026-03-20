@@ -7,7 +7,7 @@ export default function ExerciseTracker({ logs, onUpdate }: { logs: any[], onUpd
 
   const addExercise = () => {
     if (!exercise || !calories) return;
-    const newEntry = { id: Date.now(), name: exercise, calories: parseInt(calories) };
+    const newEntry = { id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, name: exercise, calories: parseInt(calories) };
     onUpdate([...(logs || []), newEntry]);
     setExercise('');
     setCalories('');

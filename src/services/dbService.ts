@@ -243,6 +243,25 @@ export async function saveFoodEntry(data: any) {
   }
 }
 
+export async function getWorkouts(userId: string) {
+  try {
+    const q = query(
+      collection(db, "workouts"),
+      where("userId", "==", userId),
+    );
+    const querySnapshot = await getDocs(q);
+    const workouts: any[] = [];
+    querySnapshot.forEach((doc) => {
+      workouts.push({ id: doc.id, ...doc.data() });
+    });
+    // Sort by date descending
+    return workouts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, "workouts");
+    return [];
+  }
+}
+
 export async function saveWorkoutSession(data: any) {
   try {
     const sessionId = data.id || Date.now().toString();

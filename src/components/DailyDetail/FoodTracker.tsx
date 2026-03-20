@@ -13,7 +13,7 @@ export default function FoodTracker({ logs, onUpdate }: { logs: any[], onUpdate:
   const [loading, setLoading] = useState(false);
 
   const addFood = (entry: any) => {
-    const newEntry = { id: Date.now(), ...entry };
+    const newEntry = { id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, ...entry };
     onUpdate([...(logs || []), newEntry]);
   };
 
