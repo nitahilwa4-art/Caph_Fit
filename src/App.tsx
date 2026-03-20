@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import NutritionLog from './pages/NutritionLog';
@@ -38,6 +39,7 @@ const AnimatedRoutes = () => {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/daily-detail" element={<PrivateRoute><DailyDetail /></PrivateRoute>} />

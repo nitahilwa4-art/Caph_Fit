@@ -40,8 +40,8 @@ export default function Onboarding() {
     setLoading(true);
     try {
       const target_calories = calculateTargetCalories(profile, preferences);
-      await saveUserProfile(user.uid, { ...profile, target_calories });
-      await saveUserPreferences(user.uid, preferences);
+      await saveUserProfile(user.id.toString(), { ...profile, target_calories });
+      await saveUserPreferences(user.id.toString(), preferences);
       await checkProfile();
       navigate('/');
     } catch (error) {

@@ -1,14 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase';
-import { onAuthStateChanged, User, signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth';
-import { checkUserProfileExists } from '../services/dbService';
+import api from '../services/api';
+
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  profile?: any;
+  preference?: any;
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   hasProfile: boolean | null;
-  signInWithGoogle: () => Promise<void>;
+  login: (token: string, user: User) => void;
   logout: () => Promise<void>;
+  checkSession: () => Promise<void>;
   checkProfile: () => Promise<void>;
 }
 
@@ -19,40 +26,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
-  const checkProfile = async () => {
-    if (auth.currentUser) {
-      const exists = await checkUserProfileExists(auth.currentUser.uid);
-      setHasProfile(exists);
-    } else {
+  const checkSession = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No token');
+      }
+
+      const response = await api.get('/user');
+      const currentUser = response.data;
+      setUser(currentUser);
+      setHasProfile(!!currentUser.profile);
+    } catch (error) {
+      setUser(null);
       setHasProfile(null);
+      localStorage.removeItem('auth_token');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        await checkProfile();
-      } else {
-        setHasProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    checkSession();
   }, []);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+  const login = (token: string, userData: User) => {
+    localStorage.setItem('auth_token', token);
+    setUser(userData);
+    setHasProfile(!!userData.profile);
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await api.post('/logout');
+    } catch (e) {
+      console.error(e);
+    }
+    localStorage.removeItem('auth_token');
+    setUser(null);
+    setHasProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, hasProfile, signInWithGoogle, logout, checkProfile }}>
+    <AuthContext.Provider value={{ user, loading, hasProfile, login, logout, checkSession, checkProfile: checkSession }}>
       {children}
     </AuthContext.Provider>
   );

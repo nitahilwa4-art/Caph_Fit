@@ -36,8 +36,8 @@ export default function Settings() {
     const loadData = async () => {
       if (!user) return;
       try {
-        const p = await getUserProfile(user.uid);
-        const pref = await getUserPreferences(user.uid);
+        const p = await getUserProfile(user.id.toString());
+        const pref = await getUserPreferences(user.id.toString());
         if (p) setProfile(p as any);
         if (pref) setPreferences(pref as any);
       } catch (error) {
@@ -54,8 +54,8 @@ export default function Settings() {
     setSaving(true);
     try {
       const target_calories = calculateTargetCalories(profile, preferences);
-      await saveUserProfile(user.uid, { ...profile, target_calories });
-      await saveUserPreferences(user.uid, preferences);
+      await saveUserProfile(user.id.toString(), { ...profile, target_calories });
+      await saveUserPreferences(user.id.toString(), preferences);
       alert('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);

@@ -28,8 +28,8 @@ export default function FoodTracker({ logs, onUpdate }: { logs: any[], onUpdate:
     if (!aiInput || !user) return;
     setLoading(true);
     try {
-      const profile = await getUserProfile(user.uid);
-      const prefs = await getUserPreferences(user.uid);
+      const profile = await getUserProfile(user.id.toString());
+      const prefs = await getUserPreferences(user.id.toString());
       const result = await parseNutritionLog(aiInput, null, profile, prefs);
       addFood({ name: result.food_name, calories: result.calories });
       setAiInput('');
@@ -50,8 +50,8 @@ export default function FoodTracker({ logs, onUpdate }: { logs: any[], onUpdate:
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result as string;
-        const profile = await getUserProfile(user.uid);
-        const prefs = await getUserPreferences(user.uid);
+        const profile = await getUserProfile(user.id.toString());
+        const prefs = await getUserPreferences(user.id.toString());
         const result = await parseNutritionLog('Analyze this food image', base64, profile, prefs);
         addFood({ name: result.food_name, calories: result.calories });
         setMode('manual');

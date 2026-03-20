@@ -13,7 +13,7 @@ export default function WorkoutHistory() {
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
-        const data = await getWorkouts(user.uid);
+        const data = await getWorkouts(user.id.toString());
         setWorkouts(data);
         setLoading(false);
       }

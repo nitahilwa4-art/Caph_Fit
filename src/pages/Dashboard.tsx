@@ -127,9 +127,9 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
-        const p = await getUserProfile(user.uid);
-        const pref = await getUserPreferences(user.uid);
-        const logs = await getDailyLogs(user.uid);
+        const p = await getUserProfile(user.id.toString());
+        const pref = await getUserPreferences(user.id.toString());
+        const logs = await getDailyLogs(user.id.toString());
         setProfile(p);
         setPreferences(pref);
         setDailyLogs(logs);
@@ -153,14 +153,14 @@ export default function Dashboard() {
         completed: false,
       }));
 
-      await saveDailyLog(user.uid, today, {
+      await saveDailyLog(user.id.toString(), today, {
         ...todayLog,
         habits: habitsWithStatus,
         total_calories_target: todayLog.total_calories_target || 2000,
         total_calories_consumed: todayLog.total_calories_consumed || 0,
       });
 
-      const logs = await getDailyLogs(user.uid);
+      const logs = await getDailyLogs(user.id.toString());
       setDailyLogs(logs);
     } catch (error) {
       console.error("Error generating habits:", error);
@@ -182,7 +182,7 @@ export default function Dashboard() {
     );
     setDailyLogs(updatedLogs);
 
-    await saveDailyLog(user.uid, today, {
+    await saveDailyLog(user.id.toString(), today, {
       ...todayLog,
       habits: updatedHabits,
       total_calories_target: todayLog.total_calories_target || profile?.target_calories || 2000,
@@ -195,7 +195,7 @@ export default function Dashboard() {
     const weightNum = parseFloat(newWeight);
     if (isNaN(weightNum)) return;
 
-    await saveDailyLog(user.uid, today, {
+    await saveDailyLog(user.id.toString(), today, {
       ...todayLog,
       weight_input: weightNum,
       total_calories_target: todayLog.total_calories_target || profile?.target_calories || 2000,
@@ -203,7 +203,7 @@ export default function Dashboard() {
     });
 
     // Refresh logs
-    const logs = await getDailyLogs(user.uid);
+    const logs = await getDailyLogs(user.id.toString());
     setDailyLogs(logs);
     setShowWeightModal(false);
     setNewWeight("");

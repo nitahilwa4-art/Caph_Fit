@@ -15,7 +15,7 @@ export default function DailyDetail() {
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
-        const data = await getDailyLog(user.uid, today);
+        const data = await getDailyLog(user.id.toString(), today);
         setLog(data || { date: today, food: [], exercise: [] });
       }
     };
@@ -39,7 +39,7 @@ export default function DailyDetail() {
       total_calories_burned: burned
     };
     
-    await saveDailyLog(user.uid, today, updatedLog);
+    await saveDailyLog(user.id.toString(), today, updatedLog);
     setLog(updatedLog);
   };
 

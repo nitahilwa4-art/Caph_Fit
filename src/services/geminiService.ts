@@ -1,6 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize AI service, but don't crash immediately if key is missing
+let ai: GoogleGenAI | null = null;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey });
+} else {
+  console.warn("VITE_GEMINI_API_KEY is not set. AI features will not work. Please add it to your .env file.");
+}
+
+// Helper to check if AI is available
+const checkAIAvailability = () => {
+    if (!ai) {
+        throw new Error("Gemini AI is not configured. Please add VITE_GEMINI_API_KEY to your .env file.");
+    }
+    return ai;
+};
 
 export async function parseNutritionLog(
   input: string,
@@ -38,7 +54,9 @@ User Goal: ${userProfile?.goal_type || "maintain"}.
 
   parts.push({ text: input || "Analyze this food." });
 
-  const response = await ai.models.generateContent({
+  const aiService = checkAIAvailability();
+
+  const response = await aiService.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: { parts },
     config: {
@@ -99,7 +117,9 @@ Make the habits actionable, specific, and directly related to their goals.
 For example, if they are cutting, suggest drinking water before meals. If bulking with slow digestion, suggest liquid calories.
 `;
 
-  const response = await ai.models.generateContent({
+  const aiService = checkAIAvailability();
+
+  const response = await aiService.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: "Generate my daily habits for today.",
     config: {
@@ -152,7 +172,9 @@ If fatigue is low (1-4), push for progressive overload.
 DO NOT suggest exercises that require equipment the user does not have.
 `;
 
-  const response = await ai.models.generateContent({
+  const aiService = checkAIAvailability();
+
+  const response = await aiService.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: "Generate today's workout session.",
     config: {
@@ -212,7 +234,9 @@ Provide a comprehensive analysis of their progress towards their goal of ${userP
 Give specific, actionable recommendations for nutrition, training, and habit adjustments.
 `;
 
-  const response = await ai.models.generateContent({
+  const aiService = checkAIAvailability();
+
+  const response = await aiService.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Analyze this data:
 Profile: ${JSON.stringify(userProfile)}

@@ -21,7 +21,7 @@ export default function NutritionLog() {
   useEffect(() => {
     const fetchHistory = async () => {
       if (user) {
-        const entries = await getFoodEntries(user.uid);
+        const entries = await getFoodEntries(user.id.toString());
         setHistory(entries);
         setLoadingHistory(false);
       }
@@ -46,15 +46,15 @@ export default function NutritionLog() {
     setResult(null);
 
     try {
-      const profile = await getUserProfile(user.uid);
-      const prefs = await getUserPreferences(user.uid);
+      const profile = await getUserProfile(user.id.toString());
+      const prefs = await getUserPreferences(user.id.toString());
       
       const analysis = await parseNutritionLog(textInput, imagePreview, profile, prefs);
       setResult(analysis);
       
       // Save to Firestore
       await saveFoodEntry({
-        userId: user.uid,
+        userId: user.id.toString(),
         date: new Date().toISOString().split('T')[0],
         input_type: imagePreview ? 'photo' : 'text',
         raw_prompt: textInput,
@@ -66,7 +66,7 @@ export default function NutritionLog() {
       });
 
       // Refresh history
-      const entries = await getFoodEntries(user.uid);
+      const entries = await getFoodEntries(user.id.toString());
       setHistory(entries);
 
       // Clear inputs

@@ -16,10 +16,10 @@ export default function AIAnalysis() {
       if (!user) return;
       try {
         const [profile, preferences, logs, workouts] = await Promise.all([
-          getUserProfile(user.uid),
-          getUserPreferences(user.uid),
-          getDailyLogs(user.uid),
-          getWorkouts(user.uid),
+          getUserProfile(user.id.toString()),
+          getUserPreferences(user.id.toString()),
+          getDailyLogs(user.id.toString()),
+          getWorkouts(user.id.toString()),
         ]);
         const result = await generateAIAnalysis(profile, preferences, logs, workouts);
         setAnalysis(result);

@@ -33,8 +33,8 @@ export default function WorkoutGenerator() {
     setSessionId(null);
 
     try {
-      const profile = await getUserProfile(user.uid);
-      const prefs = await getUserPreferences(user.uid);
+      const profile = await getUserProfile(user.id.toString());
+      const prefs = await getUserPreferences(user.id.toString());
 
       const generated = await generateAdaptiveWorkout(
         profile,
@@ -57,7 +57,7 @@ export default function WorkoutGenerator() {
 
       await saveWorkoutSession({
         id: newSessionId,
-        userId: user.uid,
+        userId: user.id.toString(),
         date: new Date().toISOString().split("T")[0],
         routine_name: generated.routine_name,
         fatigue_level: fatigueLevel,
@@ -84,7 +84,7 @@ export default function WorkoutGenerator() {
     try {
       await saveWorkoutSession({
         id: sessionId,
-        userId: user.uid,
+        userId: user.id.toString(),
         date: new Date().toISOString().split("T")[0],
         routine_name: updatedWorkout.routine_name,
         fatigue_level: fatigueLevel,
