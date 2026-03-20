@@ -199,3 +199,52 @@ DO NOT suggest exercises that require equipment the user does not have.
   if (!response.text) throw new Error("Failed to generate workout");
   return JSON.parse(response.text);
 }
+
+export async function generateAIAnalysis(
+  userProfile: any,
+  userPreferences: any,
+  dailyLogs: any[],
+  workoutHistory: any[],
+) {
+  const systemInstruction = `You are an elite AI health coach.
+Analyze the user's progress based on their profile, preferences, daily logs (nutrition, weight, habits), and workout history.
+Provide a comprehensive analysis of their progress towards their goal of ${userProfile?.goal_type || "maintain"}.
+Give specific, actionable recommendations for nutrition, training, and habit adjustments.
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Analyze this data:
+Profile: ${JSON.stringify(userProfile)}
+Preferences: ${JSON.stringify(userPreferences)}
+Daily Logs: ${JSON.stringify(dailyLogs.slice(-30))}
+Workout History: ${JSON.stringify(workoutHistory.slice(-10))}
+`,
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          analysis: {
+            type: Type.STRING,
+            description: "Comprehensive analysis of progress",
+          },
+          recommendations: {
+            type: Type.OBJECT,
+            properties: {
+              nutrition: { type: Type.STRING },
+              training: { type: Type.STRING },
+              habits: { type: Type.STRING },
+            },
+            required: ["nutrition", "training", "habits"],
+          },
+        },
+        required: ["analysis", "recommendations"],
+      },
+    },
+  });
+
+  if (!response.text) throw new Error("Failed to generate AI analysis");
+  return JSON.parse(response.text);
+}

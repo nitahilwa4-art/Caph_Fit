@@ -10,6 +10,7 @@ import WorkoutGenerator from './pages/WorkoutGenerator';
 import WorkoutHistory from './pages/WorkoutHistory';
 import Settings from './pages/Settings';
 import DailyDetail from './pages/DailyDetail';
+import AIAnalysis from './pages/AIAnalysis';
 import { AnimatePresence } from 'motion/react';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -40,6 +41,7 @@ const AnimatedRoutes = () => {
         <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/daily-detail" element={<PrivateRoute><DailyDetail /></PrivateRoute>} />
+        <Route path="/ai-analysis" element={<PrivateRoute><AIAnalysis /></PrivateRoute>} />
         <Route path="/nutrition" element={<PrivateRoute><NutritionLog /></PrivateRoute>} />
         <Route path="/workout" element={<PrivateRoute><WorkoutGenerator /></PrivateRoute>} />
         <Route path="/workout-history" element={<PrivateRoute><WorkoutHistory /></PrivateRoute>} />

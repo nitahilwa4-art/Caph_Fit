@@ -377,6 +377,13 @@ export default function Dashboard() {
               Checklist
             </button>
             <Link
+              to="/ai-analysis"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition-all font-semibold text-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Analysis
+            </Link>
+            <Link
               to="/settings"
               className="p-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 rounded-full transition-all text-slate-400 hover:text-white shadow-sm"
             >
