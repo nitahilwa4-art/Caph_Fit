@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getUserProfile, getUserPreferences, getDailyLogs, getWorkouts } from "../services/dbService";
 import { generateAIAnalysis } from "../services/geminiService";
 import { motion } from "motion/react";
 import { Sparkles, Activity, Dumbbell, Apple, ChevronLeft } from "lucide-react";
-import { Link } from "react-router-dom";
 
 export default function AIAnalysis() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<any>(null);
 
@@ -45,40 +46,48 @@ export default function AIAnalysis() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8"
+      className="page"
     >
-      <div className="max-w-4xl mx-auto">
-        <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 mb-6">
-          <ChevronLeft className="w-4 h-4" /> Back to Dashboard
-        </Link>
-        <h1 className="text-3xl font-bold text-white mb-8 flex items-center gap-3">
-          <Sparkles className="text-emerald-400" /> AI Health Analysis
-        </h1>
-        
-        {analysis && (
-          <div className="space-y-6">
-            <div className="glass-card p-6 rounded-2xl">
-              <h2 className="text-xl font-semibold text-white mb-4">Overview</h2>
-              <p className="text-slate-300 leading-relaxed">{analysis.analysis}</p>
+      <div className="section">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => navigate('/')} className="btn btn-ghost p-2">
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <Sparkles size={20} className="text-emerald-400" />
+            <h1 className="text-xl font-bold text-white">AI Analysis</h1>
+          </div>
+        </div>
+
+        {analysis ? (
+          <div className="space-y-4">
+            {/* Overview */}
+            <div className="card p-5">
+              <h2 className="text-base font-semibold text-white mb-3">Overview</h2>
+              <p className="text-sm text-slate-400 leading-relaxed">{analysis.analysis}</p>
             </div>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="glass-card p-6 rounded-2xl">
-                <Apple className="text-emerald-400 w-8 h-8 mb-4" />
-                <h3 className="font-semibold text-white mb-2">Nutrition</h3>
-                <p className="text-sm text-slate-400">{analysis.recommendations.nutrition}</p>
-              </div>
-              <div className="glass-card p-6 rounded-2xl">
-                <Dumbbell className="text-emerald-400 w-8 h-8 mb-4" />
-                <h3 className="font-semibold text-white mb-2">Training</h3>
-                <p className="text-sm text-slate-400">{analysis.recommendations.training}</p>
-              </div>
-              <div className="glass-card p-6 rounded-2xl">
-                <Activity className="text-emerald-400 w-8 h-8 mb-4" />
-                <h3 className="font-semibold text-white mb-2">Habits</h3>
-                <p className="text-sm text-slate-400">{analysis.recommendations.habits}</p>
-              </div>
+
+            {/* Recommendations */}
+            <div className="space-y-3">
+              {[
+                { icon: Apple, label: 'Nutrition', text: analysis.recommendations.nutrition },
+                { icon: Dumbbell, label: 'Training', text: analysis.recommendations.training },
+                { icon: Activity, label: 'Habits', text: analysis.recommendations.habits },
+              ].map(({ icon: Icon, label, text }) => (
+                <div key={label} className="card p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Icon size={16} className="text-emerald-400" />
+                    <span className="text-sm font-semibold text-white">{label}</span>
+                  </div>
+                  <p className="text-sm text-slate-400 leading-relaxed">{text}</p>
+                </div>
+              ))}
             </div>
+          </div>
+        ) : (
+          <div className="card p-8 text-center">
+            <p className="text-slate-500">No analysis available. Log some data first.</p>
           </div>
         )}
       </div>
