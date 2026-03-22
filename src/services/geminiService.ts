@@ -18,29 +18,90 @@ const checkAIAvailability = () => {
     return ai;
 };
 
+export interface NutritionResult {
+  food_name: string;
+  portion_grams: number;
+  portion_description: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  hidden_calories_warning: string | null;
+  reasoning: string;
+}
+
 export async function parseNutritionLog(
   input: string,
   imageBase64: string | null,
   userProfile: any,
   userPreferences: any,
-) {
+): Promise<NutritionResult> {
   const isCut = userProfile?.goal_type === "cut";
   const isBulk = userProfile?.goal_type === "bulk";
+  const dietaryRestrictions = userPreferences?.dietary_restrictions || [];
 
-  let systemInstruction = `You are an expert AI nutritionist. 
-Analyze the user's food input (text and/or image).
-User Goal: ${userProfile?.goal_type || "maintain"}.
-`;
+  const systemInstruction = `You are an expert AI nutritionist with deep knowledge of Indonesian and Southeast Asian cuisine.
+Analyze the user's food input (text description and/or image).
 
-  if (isCut) {
-    systemInstruction += `\nCRITICAL: The user is on a calorie deficit (CUT). You MUST be extremely strict and actively look for "hidden calories" (cooking oils, sauces, butter, dressings) in the image or text. Overestimate slightly rather than underestimate to protect their deficit.`;
-  } else if (isBulk) {
-    systemInstruction += `\nCRITICAL: The user is on a calorie surplus (BULK). Ensure you do not underestimate the calories. If unsure, provide a conservative estimate so they don't accidentally undereat.`;
-  }
+## USER CONTEXT
+- Goal: ${userProfile?.goal_type || "maintain"}
+- Dietary restrictions: ${dietaryRestrictions.length > 0 ? dietaryRestrictions.join(", ") : "None"}
+${isCut ? "- CUT PHASE: Overestimate hidden calories (oils, sauces, frying) rather than underestimate." : ""}
+${isBulk ? "- BULK PHASE: Be generous with estimates. Underestimating hurts their surplus." : ""}
+
+## PORTION ESTIMATION RULES (CRITICAL)
+When estimating from photo alone:
+1. Estimate the weight in GRAMS based on these standard references:
+   - 1 adult fist ≈ 200-250g (rice, noodles, salad)
+   - 1 palm (without fingers) ≈ 115-170g (meat, fish, tofu)
+   - 1 cupped hand ≈ 30g (nuts, chips)
+   - 1 thumb ≈ 15g (butter, cheese, nut butter)
+   - Standard plate: 25cm diameter, ~1.5-2cm food height ≈ 300-400g
+   - 1 scoop of rice ≈ 150g
+   - 1 piece of fried chicken (medium) ≈ 150-200g
+   - 1 bowl of Soto/Rawon/Nasi Goreng ≈ 400-500g
+   - 1 slice of bread ≈ 30g
+   - 1 egg (large) ≈ 50-60g
+   - 1 banana ≈ 120g, 1 apple ≈ 180g
+
+2. ALWAYS state your portion estimate clearly in both grams AND descriptive terms (e.g., "~300g / 2 scoops of rice + sides")
+
+3. For text input, parse the description carefully:
+   - "2 eggs" = 2 × 50-60g = 100-120g
+   - "1 plate nasi goreng" = 400-500g
+   - "secukupnya" or "sedikit" = assume standard small serving
+
+## HIDDEN CALORIES (especially for CUT users)
+Actively look for and flag:
+- Cooking oil used in frying (can add 100-200+ kcal)
+- Coconut milk in soups/sauces (santannya)
+- Sugar in drinks, sauces, marinades
+- Saus sambal, kecap manis, mayo
+- Crispy/fried coatings on foods
+- Butter, margarine, cooking cream
+
+## INDONESIAN FOOD EXPERTISE
+Common dishes - know their typical nutrition:
+- Nasi Goreng: ~500-650 kcal (with egg, tanpa nasi banyak)
+- Soto Ayam: ~350-450 kcal per bowl
+- Rendang: ~350-450 kcal per portion (high fat)
+- Ayam Geprek: ~400-500 kcal
+- Indomie: ~400-450 kcal per pack
+- Es Teh Manis: ~100-150 kcal (depends on sugar)
+- Es Jeruk: ~80-120 kcal
+- Martabak: ~400-600 kcal per slice
+
+## CONFIDENCE LEVEL
+- HIGH: Food is clearly visible, portion is obvious, well-known food
+- MEDIUM: Some ambiguity in portion size, or less common food
+- LOW: Very unclear from photo alone, or mixed dishes
+
+## OUTPUT FORMAT
+Return valid JSON with all fields. Be honest about your confidence.`;
 
   const parts: any[] = [];
   if (imageBase64) {
-    // Extract mime type and base64 data
     const match = imageBase64.match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
     if (match) {
       parts.push({
@@ -52,7 +113,11 @@ User Goal: ${userProfile?.goal_type || "maintain"}.
     }
   }
 
-  parts.push({ text: input || "Analyze this food." });
+  const textPrompt = input
+    ? `Analyze this food: "${input}"`
+    : "Analyze this food in the image. Estimate the portion size carefully.";
+
+  parts.push({ text: textPrompt });
 
   const aiService = checkAIAvailability();
 
@@ -67,30 +132,56 @@ User Goal: ${userProfile?.goal_type || "maintain"}.
         properties: {
           food_name: {
             type: Type.STRING,
-            description: "Name of the meal or food item",
+            description: "Name of the meal or food item in Bahasa Indonesia if applicable",
+          },
+          portion_grams: {
+            type: Type.NUMBER,
+            description: "Estimated portion size in GRAMS (integer)",
+          },
+          portion_description: {
+            type: Type.STRING,
+            description: "Human-readable description of the portion (e.g., '~300g / 2 scoops rice + side dishes')",
           },
           calories: {
             type: Type.NUMBER,
-            description: "Total estimated calories",
+            description: "Total estimated calories for the entire portion",
           },
-          protein: { type: Type.NUMBER, description: "Total protein in grams" },
+          protein: {
+            type: Type.NUMBER,
+            description: "Total protein in grams for the entire portion",
+          },
           carbs: {
             type: Type.NUMBER,
-            description: "Total carbohydrates in grams",
+            description: "Total carbohydrates in grams for the entire portion",
           },
-          fat: { type: Type.NUMBER, description: "Total fat in grams" },
+          fat: {
+            type: Type.NUMBER,
+            description: "Total fat in grams for the entire portion",
+          },
+          confidence: {
+            type: Type.STRING,
+            enum: ["HIGH", "MEDIUM", "LOW"],
+            description: "How confident you are in this estimate",
+          },
+          hidden_calories_warning: {
+            type: Type.STRING,
+            description: "Warning about potential hidden calories if any, or null if none detected",
+          },
           reasoning: {
             type: Type.STRING,
-            description:
-              "Brief explanation of how you estimated the macros, especially regarding hidden calories.",
+            description: "Detailed explanation of how you estimated, what you assumed, and what you're unsure about",
           },
         },
         required: [
           "food_name",
+          "portion_grams",
+          "portion_description",
           "calories",
           "protein",
           "carbs",
           "fat",
+          "confidence",
+          "hidden_calories_warning",
           "reasoning",
         ],
       },
@@ -98,7 +189,18 @@ User Goal: ${userProfile?.goal_type || "maintain"}.
   });
 
   if (!response.text) throw new Error("Failed to generate nutrition data");
-  return JSON.parse(response.text);
+
+  const result = JSON.parse(response.text);
+
+  // Validate and sanitize
+  return {
+    ...result,
+    portion_grams: Math.round(result.portion_grams) || 100,
+    calories: Math.round(result.calories) || 0,
+    protein: Math.round(result.protein * 10) / 10 || 0,
+    carbs: Math.round(result.carbs * 10) / 10 || 0,
+    fat: Math.round(result.fat * 10) / 10 || 0,
+  };
 }
 
 export async function generateDailyHabits(

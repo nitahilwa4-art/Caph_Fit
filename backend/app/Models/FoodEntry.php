@@ -10,10 +10,16 @@ class FoodEntry extends Model
         'user_id',
         'date',
         'food_name',
+        'portion_grams',
+        'portion_description',
         'calories',
         'protein',
         'carbs',
         'fat',
-        'reasoning'
+        'confidence',
+        'hidden_calories_warning',
+        'input_type',
+        'raw_prompt',
+        'reasoning',
     ];
 }

@@ -29,10 +29,16 @@ class FoodController extends Controller
         $validated = $request->validate([
             'date' => 'required|date',
             'food_name' => 'required|string',
-            'calories' => 'required|integer',
-            'protein' => 'nullable|integer',
-            'carbs' => 'nullable|integer',
-            'fat' => 'nullable|integer',
+            'portion_grams' => 'nullable|integer',
+            'portion_description' => 'nullable|string',
+            'calories' => 'required|numeric',
+            'protein' => 'nullable|numeric',
+            'carbs' => 'nullable|numeric',
+            'fat' => 'nullable|numeric',
+            'confidence' => 'nullable|string',
+            'hidden_calories_warning' => 'nullable|string',
+            'input_type' => 'nullable|string',
+            'raw_prompt' => 'nullable|string',
             'reasoning' => 'nullable|string',
         ]);
 
